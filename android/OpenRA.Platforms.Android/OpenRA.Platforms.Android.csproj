@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <RootNamespace>OpenRA.Platforms.Android</RootNamespace>
+    <AssemblyName>OpenRA.Platforms.Android</AssemblyName>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\OpenRA.Game\OpenRA.Game.csproj" />
+    <PackageReference Include="OpenRA-OpenAL-CS" Version="1.0.22" />
+    <!-- Only needed so the shared OpenGL.cs (which defaults to SDL_GL_GetProcAddress) compiles.
+         No SDL functions are ever called on Android: OpenGL.GetProcAddressOverride is set instead. -->
+    <PackageReference Include="OpenRA-SDL2-CS" Version="1.0.42" />
+  </ItemGroup>
+
+  <!-- Reuse the platform-independent GL/sound/font implementations from OpenRA.Platforms.Default.
+       The SDL-coupled window/input/context classes are replaced by Android equivalents below. -->
+  <ItemGroup>
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\OpenGL.cs" Link="Shared\OpenGL.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\Shader.cs" Link="Shared\Shader.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\Texture.cs" Link="Shared\Texture.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\FrameBuffer.cs" Link="Shared\FrameBuffer.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\VertexBuffer.cs" Link="Shared\VertexBuffer.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\StaticIndexBuffer.cs" Link="Shared\StaticIndexBuffer.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\ITextureInternal.cs" Link="Shared\ITextureInternal.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\ThreadAffine.cs" Link="Shared\ThreadAffine.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\FreeTypeFont.cs" Link="Shared\FreeTypeFont.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\OpenAlSoundEngine.cs" Link="Shared\OpenAlSoundEngine.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\DummySoundEngine.cs" Link="Shared\DummySoundEngine.cs" />
+    <Compile Include="..\..\engine\OpenRA.Platforms.Default\MultiTapDetection.cs" Link="Shared\MultiTapDetection.cs" />
+  </ItemGroup>
+
+</Project>

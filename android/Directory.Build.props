@@ -1,0 +1,10 @@
+<Project>
+  <!-- Shadows the engine-root Directory.Build.props for everything under android/.
+       The engine conventions (OutputPath=bin, StyleCop, disabled default items) do not
+       apply to the Android app/platform projects. -->
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+</Project>

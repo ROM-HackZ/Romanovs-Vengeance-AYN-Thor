@@ -1,0 +1,183 @@
+diff --git a/OpenRA.Game/Game.cs b/OpenRA.Game/Game.cs
+index a53073e..d8382dd 100644
+--- a/OpenRA.Game/Game.cs
++++ b/OpenRA.Game/Game.cs
+@@ -43,6 +43,7 @@ public static class Game
+ 		public static bool HideCursor;
+ 
+ 		static WorldRenderer worldRenderer;
++		public static WorldRenderer CurrentWorldRenderer => worldRenderer?.World.Disposing == true ? null : worldRenderer;
+ 		static string modLaunchWrapper;
+ 
+ 		internal static OrderManager OrderManager;
+@@ -247,7 +248,8 @@ internal static void StartGame(Map map, WorldType type)
+ 			// - We can remove any fragmentation in the LOH caused by temporary loading garbage.
+ 			// - A loading screen is visible, so a delay won't matter to the user.
+ 			//   Much better to clean up now then to drop frames during gameplay for GC pauses.
+-			GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
++			if (!OperatingSystem.IsAndroid())
++				GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+ 			GC.Collect();
+ 
+ 			// PostLoadComplete is designed for anything that should trigger at the very end of loading.
+@@ -450,8 +452,13 @@ static void Initialize(Arguments args)
+ 			InitializeMod(modID, args);
+ 		}
+ 
++		static Func<IPlatform> platformFactory;
++		public static void RegisterPlatformFactory(Func<IPlatform> factory) => platformFactory = factory;
++
+ 		public static IPlatform CreatePlatform(string platformName)
+ 		{
++			if (platformFactory != null)
++				return platformFactory();
+ 			var rendererPath = Path.Combine(Platform.BinDir, "OpenRA.Platforms." + platformName + ".dll");
+ 
+ 			var loader = new AssemblyLoader(rendererPath);
+diff --git a/OpenRA.Game/ObjectCreator.cs b/OpenRA.Game/ObjectCreator.cs
+index 27cc299..2862e2b 100644
+--- a/OpenRA.Game/ObjectCreator.cs
++++ b/OpenRA.Game/ObjectCreator.cs
+@@ -45,6 +45,12 @@ public ObjectCreator(Manifest manifest, InstalledMods mods)
+ 
+ 		static void LoadAssembly(List<Assembly> assemblyList, string resolvedPath)
+ 		{
++			if (OperatingSystem.IsAndroid())
++			{
++				assemblyList.Add(Assembly.Load(new AssemblyName(Path.GetFileNameWithoutExtension(resolvedPath))));
++				return;
++			}
++
+ 			// .NET doesn't provide any way of querying the metadata of an assembly without either:
+ 			//   (a) loading duplicate data into the application domain, breaking the world.
+ 			//   (b) crashing if the assembly has already been loaded.
+diff --git a/OpenRA.Mods.Common/Widgets/RadarWidget.cs b/OpenRA.Mods.Common/Widgets/RadarWidget.cs
+index 769d18e..d3b885b 100644
+--- a/OpenRA.Mods.Common/Widgets/RadarWidget.cs
++++ b/OpenRA.Mods.Common/Widgets/RadarWidget.cs
+@@ -464,6 +464,57 @@ public override void Tick()
+ 			}
+ 		}
+ 
++		// Copies the existing radar layers for a second display. Must run on the engine thread.
++		public (int[] Pixels, int Width, int Height, bool Available, float[] Viewport) ExportThorRadar()
++		{
++			if (terrainSprite == null || radarData == null)
++				return ([], 0, 0, false, []);
++			var bounds = terrainSprite.Bounds;
++			var pixels = new int[bounds.Width * bounds.Height];
++			var stride = radarSheet.Size.Width;
++			if (hasRadar)
++				unsafe
++				{
++					fixed (byte* bytes = radarData)
++					{
++						var colors = (uint*)bytes;
++						for (var y = 0; y < bounds.Height; y++)
++							for (var x = 0; x < bounds.Width; x++)
++							{
++								var offset = (bounds.Top + y) * stride + bounds.Left + x;
++								var color = colors[offset];
++								var actor = colors[offset + previewHeight * stride];
++								if ((actor >> 24) != 0) color = actor;
++								var fog = (int)(colors[offset + previewWidth] >> 24);
++								var light = 255 - fog;
++								pixels[y * bounds.Width + x] = unchecked((int)(0xff000000u |
++									(uint)(((color >> 16) & 255) * light / 255) << 16 |
++									(uint)(((color >> 8) & 255) * light / 255) << 8 |
++									(uint)((color & 255) * light / 255)));
++							}
++					}
++				}
++			var tl = world.Map.CellContaining(worldRenderer.ProjectedPosition(worldRenderer.Viewport.TopLeft)).ToMPos(world.Map);
++			var br = world.Map.CellContaining(worldRenderer.ProjectedPosition(worldRenderer.Viewport.BottomRight)).ToMPos(world.Map);
++			return (pixels, bounds.Width, bounds.Height, hasRadar, [
++				(tl.U * cellWidth - bounds.Left) / (float)bounds.Width, (tl.V - bounds.Top) / (float)bounds.Height,
++				(br.U * cellWidth - bounds.Left) / (float)bounds.Width, (br.V - bounds.Top) / (float)bounds.Height]);
++		}
++
++		public void TargetThorRadar(float x, float y, bool issueOrders)
++		{
++			if (!hasRadar || terrainSprite == null) return;
++			var b = terrainSprite.Bounds;
++			var cell = world.Map.Clamp(new MPos((int)((b.Left + x.Clamp(0, 1) * (b.Width - 1)) / cellWidth),
++				(int)(b.Top + y.Clamp(0, 1) * (b.Height - 1))).ToCPos(world.Map));
++			var position = world.Map.CenterOfCell(cell);
++			if (!issueOrders) { worldRenderer.Viewport.Center(position); return; }
++			var pixel = worldRenderer.ScreenPxPosition(position);
++			var input = new MouseInput(MouseInputEvent.Down, Game.Settings.Game.MouseButtonPreference.Action,
++				worldRenderer.Viewport.WorldToViewPx(pixel), int2.Zero, Modifiers.None, 1);
++			foreach (var order in world.OrderGenerator.Order(world, cell, pixel, input)) world.IssueOrder(order);
++		}
++
+ 		int2 CellToMinimapPixel(CPos p)
+ 		{
+ 			var uv = p.ToMPos(world.Map);
+diff --git a/OpenRA.Mods.Common/Widgets/WorldInteractionControllerWidget.cs b/OpenRA.Mods.Common/Widgets/WorldInteractionControllerWidget.cs
+index 71e7c69..4b315f7 100644
+--- a/OpenRA.Mods.Common/Widgets/WorldInteractionControllerWidget.cs
++++ b/OpenRA.Mods.Common/Widgets/WorldInteractionControllerWidget.cs
+@@ -36,6 +36,12 @@ public class WorldInteractionControllerWidget : Widget
+ 
+ 		bool IsValidDragbox => isDragging && (dragStart - mousePos).Length > Game.Settings.Game.SelectionDeadzone;
+ 
++		public void CancelThorDrag()
++		{
++			isDragging = false;
++			YieldMouseFocus(default);
++		}
++
+ 		[ObjectCreator.UseCtor]
+ 		public WorldInteractionControllerWidget(World world, WorldRenderer worldRenderer)
+ 		{
+diff --git a/OpenRA.Platforms.Default/OpenGL.cs b/OpenRA.Platforms.Default/OpenGL.cs
+index d431c29..73e1f66 100644
+--- a/OpenRA.Platforms.Default/OpenGL.cs
++++ b/OpenRA.Platforms.Default/OpenGL.cs
+@@ -26,6 +26,11 @@ namespace OpenRA.Platforms.Default
+ 		Justification = "C-style naming is kept for consistency with the underlying native API.")]
+ 	static class OpenGL
+ 	{
++		public static Func<string, IntPtr> GetProcAddressOverride { get; set; }
++		public static Func<string, bool> ExtensionSupportedOverride { get; set; }
++		static bool ExtensionSupported(string name) => ExtensionSupportedOverride != null
++			? ExtensionSupportedOverride(name) : SDL.SDL_GL_ExtensionSupported(name) == SDL.SDL_bool.SDL_TRUE;
++
+ 		[Flags]
+ 		public enum GLFeatures
+ 		{
+@@ -653,7 +658,7 @@ public static void Initialize()
+ 
+ 		static T Bind<T>(string name)
+ 		{
+-			return (T)(object)Marshal.GetDelegateForFunctionPointer(SDL.SDL_GL_GetProcAddress(name), typeof(T));
++			return (T)(object)Marshal.GetDelegateForFunctionPointer(GetProcAddressOverride != null ? GetProcAddressOverride(name) : SDL.SDL_GL_GetProcAddress(name), typeof(T));
+ 		}
+ 
+ 		public static bool DetectGLFeatures()
+@@ -675,13 +680,13 @@ public static bool DetectGLFeatures()
+ 				}
+ 
+ 				// Core features are defined as the shared feature set of GL 3.2 and (GLES 3 + derivatives, BGRA extensions)
+-				var hasBGRA = SDL.SDL_GL_ExtensionSupported("GL_EXT_texture_format_BGRA8888") == SDL.SDL_bool.SDL_TRUE;
+-				var hasDerivatives = SDL.SDL_GL_ExtensionSupported("GL_OES_standard_derivatives") == SDL.SDL_bool.SDL_TRUE;
++				var hasBGRA = ExtensionSupported("GL_EXT_texture_format_BGRA8888");
++				var hasDerivatives = ExtensionSupported("GL_OES_standard_derivatives");
+ 				if (Version.Contains(" ES") && hasBGRA && hasDerivatives && major >= 3)
+ 				{
+ 					hasValidConfiguration = true;
+ 					Profile = GLProfile.Embedded;
+-					if (SDL.SDL_GL_ExtensionSupported("GL_EXT_read_format_bgra") == SDL.SDL_bool.SDL_TRUE)
++					if (ExtensionSupported("GL_EXT_read_format_bgra"))
+ 						Features |= GLFeatures.ESReadFormatBGRA;
+ 				}
+ 				else if (major > 3 || (major == 3 && minor >= 2))
+@@ -691,7 +696,7 @@ public static bool DetectGLFeatures()
+ 				}
+ 
+ 				// Debug callbacks were introduced in GL 4.3
+-				var hasDebugMessagesCallback = SDL.SDL_GL_ExtensionSupported("GL_KHR_debug") == SDL.SDL_bool.SDL_TRUE;
++				var hasDebugMessagesCallback = ExtensionSupported("GL_KHR_debug");
+ 				if (hasDebugMessagesCallback)
+ 					Features |= GLFeatures.DebugMessagesCallback;
+ 			}

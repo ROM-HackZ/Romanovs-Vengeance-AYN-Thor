@@ -1,0 +1,41 @@
+name: Something broke
+description: Report a Thor app or installer problem.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: App or installer version
+      placeholder: 0.1.0-dev.5
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      options:
+        - Controller
+        - Touch controls
+        - Bottom screen
+        - Gameplay or performance
+        - Windows installer
+        - macOS or Linux installer
+        - Launch or update
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we reproduce it?
+      description: Include the map, faction and selected unit if they matter.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or logs

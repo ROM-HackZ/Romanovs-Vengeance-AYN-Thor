@@ -1,0 +1,22 @@
+{
+  "project": "ROM-HackZ/Romanovs-Vengeance-AYN-Thor",
+  "rv": {
+    "repository": "MustaphaTR/Romanovs-Vengeance",
+    "branch": "master",
+    "revision": "231059963663dcb07d07b56f607b41d173795da9"
+  },
+  "engine": {
+    "repository": "MustaphaTR/OpenRA",
+    "revision": "ac7864a16d00788d859eb3e9188b4ee9104e879f"
+  },
+  "android": {
+    "repository": "franktfye/OpenRA-android",
+    "branch": "master",
+    "revision": "40c4a390b7fc58c11300f9c0ee53d2ecbaf22a50"
+  },
+  "openra": {
+    "repository": "OpenRA/OpenRA",
+    "release": "release-20250330",
+    "playtest": "playtest-20261011"
+  }
+}

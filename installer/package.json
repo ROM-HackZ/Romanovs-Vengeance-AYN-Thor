@@ -1,0 +1,28 @@
+{
+  "name": "romanovs-thor-installer",
+  "productName": "Romanovs Thor Installer",
+  "version": "0.1.0",
+  "description": "Import your owned RA2 and Yuri archives into Romanovs Thor",
+  "author": {
+    "name": "ROM-HackZ",
+    "email": "24526564+intrudir@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/ROM-HackZ/Romanovs-Vengeance-AYN-Thor",
+  "desktopName": "romanovs-thor-installer.desktop",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.js",
+    "package": "node package-app.js"
+  },
+  "dependencies": {
+    "fflate": "0.8.3"
+  },
+  "devDependencies": {
+    "electron": "44.7.2",
+    "@electron/packager": "20.3.0",
+    "electron-builder": "26.15.3"
+  }
+}

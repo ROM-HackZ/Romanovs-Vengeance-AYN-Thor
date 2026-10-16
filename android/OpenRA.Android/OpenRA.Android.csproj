@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>OpenRA.AndroidApp</RootNamespace>
+    <AssemblyName>OpenRA.Android</AssemblyName>
+    <ApplicationId>org.romanovsthor.app</ApplicationId>
+    <ApplicationDisplayVersion>0.1.0-dev.5</ApplicationDisplayVersion>
+    <ApplicationVersion>5</ApplicationVersion>
+    <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
+    <!-- OpenRA relies heavily on runtime reflection (trait discovery): no trimming, no linking. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <AndroidLinkMode>None</AndroidLinkMode>
+    <!-- Package managed assemblies into the APK (debug fast-deployment would leave them out). -->
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <!-- .NET for Android Release defaults to AOT, which requires trimming; OpenRA's trait
+         reflection rules both out. JIT is proven on-device, so disable AOT explicitly. -->
+    <RunAOTCompilation>false</RunAOTCompilation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\engine\OpenRA.Game\OpenRA.Game.csproj" />
+    <ProjectReference Include="..\..\engine\OpenRA.Mods.Common\OpenRA.Mods.Common.csproj" />
+    <ProjectReference Include="..\..\engine\OpenRA.Mods.Cnc\OpenRA.Mods.Cnc.csproj" />
+    <ProjectReference Include="..\OpenRA.Platforms.Android\OpenRA.Platforms.Android.csproj" />
+  </ItemGroup>
+
+  <!-- Native dependencies (built by android/native/build-natives.sh). -->
+  <ItemGroup>
+    <AndroidNativeLibrary Include="..\native\libs\arm64-v8a\liblua51.so" Abi="arm64-v8a" />
+    <AndroidNativeLibrary Include="..\native\libs\arm64-v8a\libfreetype6.so" Abi="arm64-v8a" />
+    <AndroidNativeLibrary Include="..\native\libs\arm64-v8a\libsoft_oal.so" Abi="arm64-v8a" />
+  </ItemGroup>
+
+  <!-- Mod code/assets only. Retail MIX files are imported separately. -->
+  <ItemGroup>
+    <ProjectReference Include="../../OpenRA.Mods.RA2/OpenRA.Mods.RA2.csproj" />
+    <ProjectReference Include="../../engine/OpenRA.Mods.AS/OpenRA.Mods.AS.csproj" />
+    <ProjectReference Include="../../engine/OpenRA.Mods.D2k/OpenRA.Mods.D2k.csproj" />
+    <AndroidAsset Include="../../engine/mods/common/**" Link="openra/mods/common/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../engine/mods/common-content/**" Link="openra/mods/common-content/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../engine/mods/cnc/**" Link="openra/mods/cnc/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../engine/mods/ts/**" Link="openra/mods/ts/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../mods/rv/**" Link="openra/mods/rv/%(RecursiveDir)%(Filename)%(Extension)" Exclude="../../mods/rv/**/*.dll;../../mods/rv/**/*.pdb" />
+    <AndroidAsset Include="../../mods/rv-content/**" Link="openra/mods/rv-content/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../engine/glsl/**" Link="openra/glsl/%(RecursiveDir)%(Filename)%(Extension)" />
+    <AndroidAsset Include="../../engine/VERSION" Link="openra/VERSION" />
+    <AndroidAsset Include="../../engine/global mix database.dat" Link="openra/global mix database.dat" />
+  </ItemGroup>
+</Project>
