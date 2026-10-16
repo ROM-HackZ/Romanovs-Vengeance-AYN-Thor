@@ -6,8 +6,8 @@
     <RootNamespace>OpenRA.AndroidApp</RootNamespace>
     <AssemblyName>OpenRA.Android</AssemblyName>
     <ApplicationId>org.romanovsthor.app</ApplicationId>
-    <ApplicationDisplayVersion>0.1.0-dev.5</ApplicationDisplayVersion>
-    <ApplicationVersion>5</ApplicationVersion>
+    <ApplicationDisplayVersion>0.1.0-dev.6</ApplicationDisplayVersion>
+    <ApplicationVersion>6</ApplicationVersion>
     <SupportedOSPlatformVersion>24</SupportedOSPlatformVersion>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
     <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>

@@ -128,7 +128,12 @@ namespace OpenRA.AndroidApp
 				entries = entries.Where(e => filter == 0 || filter == 1 && e.Category == ThorController.Category.Buildings ||
 					filter == 2 && e.Category == ThorController.Category.Defences || filter == 3 && e.Category is ThorController.Category.Infantry or ThorController.Category.Vehicles or ThorController.Category.Aircraft or ThorController.Category.Navy).ToArray();
 			}
-			else Text(canvas, s.DeckTab == 2 ? "SUPPORT POWERS & UPGRADES" : "ORDERS FOR YOUR SELECTION", 548, 315, 20, ThorTheme.Muted);
+			else if (s.DeckTab == 2)
+			{
+				Text(canvas, s.CommanderPoints is int points ? "COMMANDER POINTS: " + points : "SUPPORT POWERS & UPGRADES", 548, 308, 21, ThorTheme.Gold);
+				Text(canvas, s.CommanderPoints == 0 ? "Earn more through combat and promotions." : "Hold a choice to read what it does.", 548, 330, 17, ThorTheme.Muted);
+			}
+			else Text(canvas, "ORDERS FOR YOUR SELECTION", 548, 315, 20, ThorTheme.Muted);
 			var pages = Math.Max(1, (entries.Length + 7) / 8); page = Math.Clamp(page, 0, pages - 1);
 			for (var i = 0; i < Math.Min(8, entries.Length - page * 8); i++)
 			{
@@ -190,14 +195,15 @@ namespace OpenRA.AndroidApp
 
 		void Entry(Canvas c, RectF bounds, ThorController.Entry entry)
 		{
-			ThorTheme.Box(c, paint, bounds, pressed == entry.Id || entry.Ready, entry.Enabled);
+			ThorTheme.Box(c, paint, bounds, pressed == entry.Id || entry.Ready || entry.Unlocked, entry.Enabled || entry.Unlocked);
 			var bitmap = artwork.Get(controller, entry.Icon);
 			if (bitmap != null) ThorTheme.Icon(c, paint, bitmap, new RectF(bounds.Left + 10, bounds.Top + 13, bounds.Left + 85, bounds.Top + 70));
 			else Text(c, ThorTheme.Symbol(entry.Id), bounds.Left + 43, bounds.Top + 51, 34, entry.Enabled ? ThorTheme.Gold : ThorTheme.Border, Paint.Align.Center);
-			ThorTheme.Lines(c, paint, entry.Label, new RectF(bounds.Left + 95, bounds.Top + 6, bounds.Right - 9, bounds.Top + 63), 22, entry.Enabled ? Color.White : ThorTheme.Muted, 2);
-			ThorTheme.Lines(c, paint, entry.Detail, new RectF(bounds.Left + 10, bounds.Top + 72, bounds.Right - 9, bounds.Top + 95), 17, entry.Ready ? ThorTheme.Gold : ThorTheme.Muted, 1);
+			ThorTheme.Lines(c, paint, entry.Label, new RectF(bounds.Left + 95, bounds.Top + 6, bounds.Right - 9, bounds.Top + 63), 22, entry.Unlocked ? ThorTheme.Green : entry.Enabled ? Color.White : ThorTheme.Muted, 2);
+			ThorTheme.Lines(c, paint, entry.Detail, new RectF(bounds.Left + 10, bounds.Top + 72, bounds.Right - 9, bounds.Top + 95), 17, entry.Unlocked ? ThorTheme.Green : entry.Ready ? ThorTheme.Gold : ThorTheme.Muted, 1);
 			if (entry.Progress >= 0) ThorTheme.Bar(c, paint, new RectF(bounds.Left + 3, bounds.Bottom - 5, bounds.Right - 3, bounds.Bottom - 2), entry.Progress, entry.Ready ? ThorTheme.Gold : ThorTheme.Green);
-				hits.Add((bounds, entry.Id, !controller.Snapshot.InMenu && (entry.Enabled || entry.CanCancel))); HoldBar(c, bounds, entry.Id);
+			// Unavailable cards can explain their requirements without issuing orders.
+			hits.Add((bounds, entry.Id, !controller.Snapshot.InMenu)); HoldBar(c, bounds, entry.Id);
 		}
 		void HoldBar(Canvas c, RectF bounds, string id)
 		{
@@ -238,7 +244,11 @@ namespace OpenRA.AndroidApp
 				else if (id.StartsWith("filter:", StringComparison.Ordinal)) { filter = int.Parse(id[7..]); page = 0; }
 				else if (id == "page:previous") page = Math.Max(0, page - 1);
 				else if (id == "page:next") page++;
-				else if (e.EventTime - pressTime >= 650 && id.StartsWith("build:", StringComparison.Ordinal)) controller.Execute("cancel:" + id);
+				else if (e.EventTime - pressTime >= 650 && id.StartsWith("build:", StringComparison.Ordinal))
+				{
+					var entry = controller.Snapshot.Production.Concat(controller.Snapshot.Powers).FirstOrDefault(e => e.Id == id);
+					controller.Execute((entry?.CanCancel == true ? "cancel:" : "info:") + id);
+				}
 				else if (e.EventTime - pressTime >= 650 && id.StartsWith("group:", StringComparison.Ordinal)) controller.Execute("assign:" + id[6..]);
 				else controller.Execute(id);
 				PerformHapticFeedback(FeedbackConstants.VirtualKey); Invalidate(); return true;

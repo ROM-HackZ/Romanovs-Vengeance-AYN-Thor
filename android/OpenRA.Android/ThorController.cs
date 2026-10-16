@@ -27,6 +27,8 @@ namespace OpenRA.AndroidApp
 			public int Queued { get; init; }
 			public bool Ready { get; init; }
 			public bool CanCancel { get; init; }
+			public bool Unlocked { get; init; }
+			public string Description { get; init; } = "";
 		}
 		sealed record WheelPage(string Title, Entry[] Entries);
 		public sealed record IconFrame(int[] Pixels, int Width, int Height);
@@ -50,6 +52,7 @@ namespace OpenRA.AndroidApp
 			public int Cash { get; init; }
 			public int PowerUsed { get; init; }
 			public int PowerTotal { get; init; }
+			public int? CommanderPoints { get; init; }
 			public string Faction { get; init; } = "";
 			public string Hint { get; init; } = "";
 			public string Feedback { get; init; } = "";
@@ -440,8 +443,10 @@ namespace OpenRA.AndroidApp
 			}
 			if (id.StartsWith("tab:", StringComparison.Ordinal)) { deckTab = int.Parse(id[4..]); lastSnapshot = 0; return; }
 			if (!battle || inMenu) return;
+			var infoOnly = id.StartsWith("info:", StringComparison.Ordinal);
+			if (infoOnly) id = id[5..];
 			var available = commands.Concat(production).Concat(powers).FirstOrDefault(e => e.Id == id);
-			if (available != null && !available.Enabled) { Feedback(available.Detail); return; }
+			if (available != null && (infoOnly || !available.Enabled)) { Feedback(available.Label + " · " + available.Detail + (available.Description == "" ? "" : " · " + available.Description)); return; }
 			if (productionActions.TryGetValue(id, out var produce)) { produce(); return; }
 			var entry = commands.FirstOrDefault(e => e.Id == id);
 			if (entry != null && !entry.Enabled) { Feedback(entry.Detail); return; }

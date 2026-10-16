@@ -1,5 +1,25 @@
 # Preview verification
 
+## 0.1.0-dev.6: powers and production
+
+Checked on 2026-10-16 on the same Thor. APK SHA-256: `6e7e512ea3e40d8933a95877b1e1e4f963ab86c632da443dfd3e63181bb38938`.
+
+`verify-catalog.py` passed 29 checks against a restored French base and 22 against a fresh French skirmish. These counts include navigation checks as well as gameplay assertions. The fresh-match check spends the starting commander point; the restored-base check actually trains two GIs.
+
+| Check | Result |
+| --- | --- |
+| Commander points | Native Lua-owned value reads 1 before purchase and 0 after purchase, matching the game state. |
+| Last-point purchase | Holding Aircraft Training shows its description without purchasing; tapping spends one point. The full list remains visible, with Aircraft Training marked UNLOCKED. |
+| Unavailable choices | Gun Turret explains the missing point without creating an upgrade. Higher-rank choices state rank requirements. Aircraft Training cannot be bought twice. |
+| Command wheel | The unlocked choice remains available to inspect through the RT wheel's native pages. |
+| Global unit production | A GI finishes training with nothing selected. Another finishes with a GI selected. Neither action changes selection or requires selecting the Barracks. |
+| Existing saves | The pre-update French base loads with its two Power Plants, Barracks, six GIs and purchased Aircraft Training. The test changes are kept out of that save. |
+| Windows installer | Repackaged EXE opened through its real UI. Its bundled APK matches the installed dev.6 build; all six retail archives are verified and retained. |
+
+Local reports are `artifacts/catalog-restored-verification.json` and `artifacts/catalog-purchase-verification.json`. Screenshots of the powers deck, wheel and training screen were inspected on the computer. The earlier core and polish results below describe dev.5; they weren't all repeated for this UI change.
+
+## 0.1.0-dev.5 baseline
+
 Checked on 2026-10-15: AYN Thor, Android 13, Snapdragon 8 Gen 2 / Adreno 740. APK `0.1.0-dev.5`, SHA-256 `64f5ce443757fee6cda169fa163310b69d55a4a9d08cab69ab9846d36ee0087d`. The installed APK hash and integration source hashes match the local build. Retail data came from the owner's Steam RA2 + Yuri installation.
 
 This build passed 26 core gameplay checks, 36 polish checks and 12 support-power checks on the device. Earlier unit-training and save-creation checks are marked below rather than presented as fresh results.

@@ -51,6 +51,30 @@ index 27cc299..2862e2b 100644
  			// .NET doesn't provide any way of querying the metadata of an assembly without either:
  			//   (a) loading duplicate data into the application domain, breaking the world.
  			//   (b) crashing if the assembly has already been loaded.
+diff --git a/OpenRA.Game/Scripting/ScriptContext.cs b/OpenRA.Game/Scripting/ScriptContext.cs
+index 3d8500a..527d42a 100644
+--- a/OpenRA.Game/Scripting/ScriptContext.cs
++++ b/OpenRA.Game/Scripting/ScriptContext.cs
+@@ -342,5 +342,19 @@ Type[] FilterCommands(ActorInfo ai, Type[] knownCommands)
+ 		}
+ 
+ 		public LuaTable CreateTable() { return runtime.CreateTable(); }
++
++		// Read-only UI access to per-player values owned by the map script.
++		public int? ReadTableInteger(string tableName, string key)
++		{
++			if (disposed || FatalErrorOccurred)
++				return null;
++
++			using var table = runtime.Globals[tableName];
++			if (table is not LuaTable values)
++				return null;
++
++			using var value = values[key];
++			return value.TryGetClrValue<int>(out var number) ? number : null;
++		}
+ 	}
+ }
 diff --git a/OpenRA.Mods.Common/Widgets/RadarWidget.cs b/OpenRA.Mods.Common/Widgets/RadarWidget.cs
 index 769d18e..d3b885b 100644
 --- a/OpenRA.Mods.Common/Widgets/RadarWidget.cs
@@ -181,3 +205,10 @@ index d431c29..73e1f66 100644
  				if (hasDebugMessagesCallback)
  					Features |= GLFeatures.DebugMessagesCallback;
  			}
+diff --git a/VERSION b/VERSION
+index 5c0d013..bab4e03 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-{DEV_VERSION}
++ac7864a16d00788d859eb3e9188b4ee9104e879f

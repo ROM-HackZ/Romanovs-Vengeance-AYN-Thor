@@ -6,7 +6,7 @@ I wanted some RA2 on the Thor with proper controls and a reason to use the botto
 
 ## Download
 
-[Get the Windows installer](https://github.com/ROM-HackZ/Romanovs-Vengeance-AYN-Thor/releases/download/v0.1.0-dev.5/Romanovs-Thor-Installer-0.1.0-Windows-x64.exe), or see the [preview release](https://github.com/ROM-HackZ/Romanovs-Vengeance-AYN-Thor/releases/tag/v0.1.0-dev.5) for the APK, checksums and known limits. The Windows installer includes the APK.
+[Get the Windows installer](https://github.com/ROM-HackZ/Romanovs-Vengeance-AYN-Thor/releases/download/v0.1.0-dev.6/Romanovs-Thor-Installer-0.1.0-Windows-x64.exe), or see the [preview release](https://github.com/ROM-HackZ/Romanovs-Vengeance-AYN-Thor/releases/tag/v0.1.0-dev.6) for the APK, checksums and known limits. The Windows installer includes the APK.
 
 The repo is currently private. You'll need to sign into GitHub with an account that has access to download the preview.
 
@@ -74,12 +74,16 @@ For a directional airstrike, hold A on the target, move the left stick to choose
 | --- | --- |
 | Commands | Large labelled action buttons, with unavailable actions dimmed. |
 | Minimap | Tap to jump there; drag to pan across the map. Radar visibility follows the game rules. |
-| Build | Native icons, prices, queue counts and progress. Filter buildings, defences or units. Tap to queue; tap a READY building to place it on the top screen. Hold a production button to cancel one; tap a paused queue to resume it. |
-| Powers | Upgrades and support powers, with charge progress and targeting through the engine. |
+| Build | Native icons, prices, queue counts and progress. Filter buildings, defences or units. Tap to queue; tap a READY building to place it on the top screen. Hold a queued production button to cancel one; tap a paused queue to resume it. |
+| Powers | Commander-point count, unlocked upgrades, requirements and support-power charge progress. Spent your last point? The choices stay visible. Hold an unqueued choice to read its description. |
 | Header | Current selection, health, cash and power usage. |
 | Groups 1–10 | Tap to recall; hold to assign the current selection. |
 
 The buttons and minimap use the engine's actual state and orders. There's no screenshot detection or Android input injection.
+
+You can train units whenever you own the required production building. You don't have to select the Barracks or War Factory first. Select your army, keep moving it, and queue reinforcements from the bottom screen or RT wheel.
+
+A building marked **READY** still needs placing. Tap its button, choose a clear spot near your base, then press A. Commander upgrades work differently: Aircraft Training, for example, is a passive upgrade for aircraft you train. An **UNLOCKED** choice stays visible and can't be purchased twice. Tap a dimmed choice to see why it's unavailable.
 
 On the top screen, tap to select or order, and drag one finger for a selection box. When targeting a directional airstrike, that drag chooses its approach instead. Drag with two fingers to pan, pinch to zoom, or briefly tap with two fingers to deselect. The isometric camera doesn't rotate.
 

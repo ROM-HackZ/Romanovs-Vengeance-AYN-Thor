@@ -5,6 +5,7 @@ using System.Linq;
 using Android.Views;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Orders;
+using OpenRA.Mods.Common.Scripting;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Traits.Render;
 using OpenRA.Mods.Common.Widgets;
@@ -107,6 +108,20 @@ namespace OpenRA.AndroidApp
 			};
 		}
 
+		static string MissingRequirements(World world, ProductionQueue queue, BuildableInfo item)
+		{
+			var missing = item.Prerequisites.Where(p => !p.StartsWith('~') && !queue.TechTree.HasPrerequisites([p]));
+			return string.Join(", ", missing.Select(p => p switch
+			{
+				"prerequisite.has_points" => "commander point",
+				"prerequisite.3_stars" => "rank 3",
+				"prerequisite.5_stars" => "rank 5",
+				"power" => "power generation",
+				_ => p.StartsWith('!') ? "without " + p[1..] :
+					world.Map.Rules.Actors.TryGetValue(p, out var actor) ? Name(actor) : p.Replace('_', ' ').Replace('.', ' ')
+			}));
+		}
+
 		void Publish(World world, bool battle)
 		{
 			var versionLabel = Ui.Root.GetOrNull<LabelWidget>("VERSION_LABEL");
@@ -118,6 +133,7 @@ namespace OpenRA.AndroidApp
 			var selected = !battle ? [] : world.Selection.Actors.Where(a => !a.IsDead && !a.Disposed).ToArray();
 			var owned = selected.Where(a => a.Owner == world.LocalPlayer).ToArray();
 			var cash = 0; var used = 0; var total = 0;
+			int? commanderPoints = null;
 			var selection = "Choose Singleplayer, then Skirmish";
 			var faction = "";
 			if (battle)
@@ -136,28 +152,38 @@ namespace OpenRA.AndroidApp
 					.Select(g => g.Count() + " × " + Name(g.First().Info)));
 				var controlGroups = world.WorldActor.TraitOrDefault<ControlGroups>();
 				for (var i = 0; i < 10; i++) groups[i] = controlGroups?.GetActorsInControlGroup(i).Count() ?? 0;
-				foreach (var actor in world.Actors.Where(a => a.Owner == world.LocalPlayer && !a.IsDead && !a.Disposed))
+				var playerActors = world.Actors.Where(a => a.Owner == world.LocalPlayer && !a.IsDead && !a.Disposed).ToArray();
+				var ownedTypes = playerActors.Select(a => a.Info.Name).ToHashSet();
+				if (world.LocalPlayer.PlayerActor.TraitsImplementing<ProductionQueue>().Any(q => q.Info.Group == "Power" && q.Enabled))
+					commanderPoints = world.WorldActor.TraitOrDefault<LuaScript>()?.Context?.ReadTableInteger("Points", world.LocalPlayer.InternalName);
+				foreach (var actor in playerActors)
 					foreach (var queue in actor.TraitsImplementing<ProductionQueue>())
-						foreach (var item in queue.BuildableItems().OrderBy(i => BuildableInfo.GetTraitForQueue(i, queue.Info.Type).GetBuildPaletteOrder(i, queue)).ThenBy(i => i.Name))
+						foreach (var item in queue.AllItems().OrderBy(i => BuildableInfo.GetTraitForQueue(i, queue.Info.Type).GetBuildPaletteOrder(i, queue)).ThenBy(i => i.Name))
 						{
 							var capturedQueue = queue; var capturedItem = item;
 							var buildable = BuildableInfo.GetTraitForQueue(item, queue.Info.Type);
 							var id = $"build:{epoch}:{actor.ActorID}:{queue.Info.Type}:{item.Name}";
 							var queued = queue.AllQueued().Where(q => q.Item == item.Name).ToArray();
 							var current = queued.FirstOrDefault();
-							var canQueue = queue.CanQueue(item, out _, out _);
 							var category = QueueCategory(queue.Info.Type);
+							var unlocked = category == Category.Upgrades && ownedTypes.Contains(item.Name);
+							var canQueue = !unlocked && queue.BuildableItems().Contains(item) && queue.CanQueue(item, out _, out _);
 							var rsi = item.TraitInfoOrDefault<RenderSpritesInfo>();
 							var producer = queue.MostLikelyProducer();
 							var image = rsi?.GetImage(item, producer.Trait?.Faction ?? world.LocalPlayer.Faction.InternalName);
 							var icon = image == null ? "" : CacheIcon(world, image, buildable.Icon,
 								buildable.IconPalette + (buildable.IconPaletteIsPlayerPalette ? actor.Owner.InternalName : ""));
-							var detail = current == null ? (category == Category.Upgrades ? "Unlock upgrade" : "$" + queue.GetProductionCost(item)) : current.Done ? "READY · A to place" :
+							var cost = queue.GetProductionCost(item);
+							var isCommanderChoice = queue.Info.Group == "Power";
+							var missing = !unlocked && current == null && !canQueue ? MissingRequirements(world, queue, buildable) : "";
+							var detail = unlocked ? "UNLOCKED · upgrade active" : current == null ? (isCommanderChoice ? "1 commander point" : "$" + cost) : current.Done ? "READY · A to place" :
 								current.Paused ? "ON HOLD · tap to resume" : $"{queued.Length} queued · {Math.Max(0, (current.TotalTime - current.RemainingTime) * 100 / Math.Max(1, current.TotalTime))}%";
-							if (current == null && !canQueue) detail += " · unavailable";
-							var entry = new Entry(id, Name(item), !inMenu && (canQueue || current != null))
+							if (!unlocked && current == null && !canQueue)
+								detail = missing != "" ? "Requires: " + missing : cash < cost ? "Requires $" + cost : "Queue or build limit reached";
+							var entry = new Entry(id, Name(item), !inMenu && !unlocked && (canQueue || current != null))
 							{
 								Category = category, Detail = detail, Icon = icon, Queued = queued.Length,
+								Unlocked = unlocked, Description = buildable.Description == null ? "" : FluentProvider.GetMessage(buildable.Description),
 								Ready = current?.Done == true, CanCancel = queued.Length > 0,
 								Progress = current == null ? -1 : current.Done ? 1 : 1 - current.RemainingTime / (float)Math.Max(1, current.TotalTime)
 							};
@@ -174,7 +200,7 @@ namespace OpenRA.AndroidApp
 								else if (capturedQueue.AllQueued().Any(q => q.Item == capturedItem.Name && q.Paused))
 								{ world.IssueOrder(Order.PauseProduction(capturedQueue.Actor, capturedItem.Name, false)); Feedback("Production resumed"); }
 								else if (capturedQueue.CanQueue(capturedItem, out _, out _))
-								{ world.IssueOrder(Order.StartProduction(capturedQueue.Actor, capturedItem.Name, shift ? 5 : 1, true)); Feedback(Name(capturedItem) + (shift ? " · 5 queued" : " · queued")); }
+								{ world.IssueOrder(Order.StartProduction(capturedQueue.Actor, capturedItem.Name, shift && !isCommanderChoice ? 5 : 1, true)); Feedback(Name(capturedItem) + (shift && !isCommanderChoice ? " · 5 queued" : " · queued")); }
 								else Feedback("Unavailable · check funds, requirements or queue limit");
 							};
 							productionActions["cancel:" + id] = () =>
@@ -236,6 +262,7 @@ namespace OpenRA.AndroidApp
 				Dragging = mouseHeld, RadarAvailable = Radar?.Available == true, Targeting = generator,
 				Owned = !battle ? new() : world.Actors.Where(a => a.Owner == world.LocalPlayer && !a.IsDead && !a.Disposed).GroupBy(a => a.Info.Name).ToDictionary(g => g.Key, g => g.Count()),
 				InMenu = inMenu, Window = ActiveMenu()?.Id ?? "", Epoch = epoch, Cash = cash, PowerUsed = used, PowerTotal = total, Faction = faction,
+				CommanderPoints = commanderPoints,
 				Hint = inMenu ? "Left stick: cursor · D-pad: jump between buttons · A choose · B back" :
 					generator == "PlaceBuildingOrderGenerator" ? "PLACING BUILDING · A confirm · B cancel · Left stick pan" :
 					generator == "SelectDirectionalTarget" ? "AIRSTRIKE · Hold A + left stick: approach direction · Release A to launch · B cancel" :
